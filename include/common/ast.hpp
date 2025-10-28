@@ -10,7 +10,7 @@ extern syntax_tree *parse(const char *input);
 #include <string>
 #include <vector>
 
-enum CminusType { TYPE_INT, TYPE_FLOAT, TYPE_VOID };
+enum CminusType { TYPE_INT, TYPE_FLOAT, TYPE_VOID, TYPE_POINT_REF, TYPE_UINT };
 
 enum RelOp {
     // <=
@@ -61,10 +61,12 @@ struct ASTFactor;
 struct ASTExpression;
 struct ASTVar;
 struct ASTAssignExpression;
+struct ASTDerefAssignExpression;
 struct ASTSimpleExpression;
 struct ASTAdditiveExpression;
 struct ASTTerm;
 struct ASTCall;
+struct ASTDerefVar;
 
 class ASTVisitor;
 
@@ -98,6 +100,7 @@ struct ASTProgram : ASTNode {
 struct ASTDeclaration : ASTNode {
     virtual ~ASTDeclaration() = default;
     CminusType type;
+    int nested_level;
     std::string id;
 };
 
@@ -176,6 +179,12 @@ struct ASTAssignExpression : ASTExpression {
     std::shared_ptr<ASTExpression> expression;
 };
 
+struct ASTDerefAssignExpression : ASTExpression {
+    virtual Value* accept(ASTVisitor &) override final;
+    std::shared_ptr<ASTVar> var;
+    std::shared_ptr<ASTExpression> expression;
+};
+
 struct ASTSimpleExpression : ASTExpression {
     virtual Value* accept(ASTVisitor &) override final;
     std::shared_ptr<ASTAdditiveExpression> additive_expression_l;
@@ -184,6 +193,13 @@ struct ASTSimpleExpression : ASTExpression {
 };
 
 struct ASTVar : ASTFactor {
+    virtual Value* accept(ASTVisitor &) override final;
+    std::string id;
+    // nullptr if var is of int type
+    std::shared_ptr<ASTExpression> expression;
+};
+
+struct ASTDerefVar : ASTFactor {
     virtual Value* accept(ASTVisitor &) override final;
     std::string id;
     // nullptr if var is of int type
@@ -223,9 +239,11 @@ class ASTVisitor {
     virtual Value* visit(ASTIterationStmt &) = 0;
     virtual Value* visit(ASTReturnStmt &) = 0;
     virtual Value* visit(ASTAssignExpression &) = 0;
+    virtual Value* visit(ASTDerefAssignExpression &) = 0;
     virtual Value* visit(ASTSimpleExpression &) = 0;
     virtual Value* visit(ASTAdditiveExpression &) = 0;
     virtual Value* visit(ASTVar &) = 0;
+    virtual Value* visit(ASTDerefVar &) = 0;
     virtual Value* visit(ASTTerm &) = 0;
     virtual Value* visit(ASTCall &) = 0;
 };
@@ -243,9 +261,11 @@ class ASTPrinter : public ASTVisitor {
     virtual Value* visit(ASTIterationStmt &) override final;
     virtual Value* visit(ASTReturnStmt &) override final;
     virtual Value* visit(ASTAssignExpression &) override final;
+    virtual Value* visit(ASTDerefAssignExpression &) override final;
     virtual Value* visit(ASTSimpleExpression &) override final;
     virtual Value* visit(ASTAdditiveExpression &) override final;
     virtual Value* visit(ASTVar &) override final;
+    virtual Value* visit(ASTDerefVar &) override final;
     virtual Value* visit(ASTTerm &) override final;
     virtual Value* visit(ASTCall &) override final;
     void add_depth() { depth += 2; }
