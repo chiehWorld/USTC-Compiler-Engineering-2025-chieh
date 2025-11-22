@@ -243,6 +243,21 @@ ASTNode *AST::transform_node_iter(syntax_tree_node *n) {
     node->expression = std::shared_ptr<ASTExpression>(expr_node);
 
     return node;
+  } else if (_STR_EQ(n->name, "deref-expression")) {
+    // simple-expression
+    if (n->children_num == 1) {
+      return transform_node_iter(n->children[0]);
+    }
+    auto node = new ASTDerefAssignExpression();
+
+    auto var_node = static_cast<ASTVar *>(transform_node_iter(n->children[0]));
+    node->var = std::shared_ptr<ASTVar>(var_node);
+
+    auto expr_node =
+        static_cast<ASTExpression *>(transform_node_iter(n->children[2]));
+    node->expression = std::shared_ptr<ASTExpression>(expr_node);
+
+    return node;
   } else if (_STR_EQ(n->name, "var")) {
     auto node = new ASTVar();
     node->id = n->children[0]->name;
@@ -368,6 +383,10 @@ ASTNode *AST::transform_node_iter(syntax_tree_node *n) {
       }
     }
     return node;
+  } else if (_STR_EQ(n->name, "deref-factor")) {
+    auto node = new ASTDerefVar();
+    node->id = n->children[0]->children[0]->name;
+	  return node;
   } else {
     std::cerr << "[ast]: transform failure!" << std::endl;
     std::abort();
@@ -385,11 +404,13 @@ Value* ASTSelectionStmt::accept(ASTVisitor &visitor) { return visitor.visit(*thi
 Value* ASTIterationStmt::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTReturnStmt::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTAssignExpression::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
+Value* ASTDerefAssignExpression::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTSimpleExpression::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTAdditiveExpression::accept(ASTVisitor &visitor) {
     return visitor.visit(*this);
 }
 Value* ASTVar::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
+Value* ASTDerefVar::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTTerm::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 Value* ASTCall::accept(ASTVisitor &visitor) { return visitor.visit(*this); }
 
@@ -526,6 +547,16 @@ Value* ASTPrinter::visit(ASTAssignExpression &node) {
     return nullptr;
 }
 
+Value* ASTPrinter::visit(ASTDerefAssignExpression &node) {
+    _DEBUG_PRINT_N_(depth);
+    std::cout << "deref-assign-expression" << std::endl;
+    add_depth();
+    node.var->accept(*this);
+    node.expression->accept(*this);
+    remove_depth();
+    return nullptr;
+}
+
 Value* ASTPrinter::visit(ASTSimpleExpression &node) {
     _DEBUG_PRINT_N_(depth);
     std::cout << "simple-expression";
@@ -579,6 +610,13 @@ Value* ASTPrinter::visit(ASTAdditiveExpression &node) {
         node.additive_expression->accept(*this);
     node.term->accept(*this);
     remove_depth();
+    return nullptr;
+}
+
+Value* ASTPrinter::visit(ASTDerefVar &node) {
+    _DEBUG_PRINT_N_(depth);
+    std::cout << "var: " << node.id;
+    std::cout << std::endl;
     return nullptr;
 }
 
